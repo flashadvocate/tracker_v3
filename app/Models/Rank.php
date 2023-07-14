@@ -17,4 +17,9 @@ class Rank extends Model
     {
         return $this->hasMany(Member::class);
     }
+
+    public function recommendation(): \Illuminate\Database\Eloquent\Relations\MorphOne
+    {
+        return $this->morphOne(Recommendation::class, 'recommendable');
+    }
 }

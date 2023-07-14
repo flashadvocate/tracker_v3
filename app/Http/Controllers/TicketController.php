@@ -9,7 +9,6 @@ use App\Notifications\NotifyAdminTicketCreated;
 use App\Notifications\NotifyCallerTicketUpdated;
 use App\Notifications\NotifyNewTicketOwner;
 use App\Notifications\NotifyUserTicketCreated;
-use App\Notifications\TicketReaction;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,10 +29,10 @@ class TicketController extends Controller
     public function setup()
     {
         $ticketTypes = TicketType::orderBy('display_order', 'ASC')
-                                 ->get();
+            ->get();
 
         $ticketTypes = $ticketTypes->filter(function ($type) {
-            return collect(json_decode($type->role_access))->contains(auth()->user()->role_id)
+            return collect(json_decode($type->role_access))->contains(auth()->user()->role->value)
                 || empty(json_decode($type->role_access));
         });
 
@@ -46,15 +45,15 @@ class TicketController extends Controller
     public function index()
     {
         $tickets = QueryBuilder::for(Ticket::class)
-                               ->allowedFilters([
-                                   'type.slug',
-                                   'caller.name',
-                                   'caller.member.clan_id',
-                                   'owner.name',
-                                   'owner.member.clan_id',
-                                   'state',
-                                   'description',
-                               ]);
+            ->allowedFilters([
+                'type.slug',
+                'caller.name',
+                'caller.member.clan_id',
+                'owner.name',
+                'owner.member.clan_id',
+                'state',
+                'description',
+            ]);
 
         // filter tickets unless you're an admin
         if (!auth()->user()->can('manage', Ticket::class)) {
@@ -104,7 +103,6 @@ class TicketController extends Controller
         $ticket->state = 'new';
         $ticket->ticket_type_id = $validated['ticket_type'];
         $ticket->description = $validated['description'];
-        $ticket->message_id = \Ramsey\Uuid\Uuid::uuid4()->toString();
         $ticket->caller_id = auth()->id();
         $ticket->division_id = auth()->user()->member->division_id;
         $ticket->save();
@@ -114,13 +112,6 @@ class TicketController extends Controller
         $ticket->notify(new NotifyAdminTicketCreated());
 
         flash('Your ticket has been created! Please allow 24/48 hours for a response from an admin.')->important();
-
-        /* @TODO: refactor later */
-        if ($ticket->type->auto_assign_to) {
-            $ticket->ownTo($ticket->type->auto_assign_to);
-            $ticket->notify(new NotifyCallerTicketUpdated('Ticket has been assigned to ' . $ticket->type->auto_assign_to->name));
-            $ticket->notify(new NotifyNewTicketOwner($ticket->type->auto_assign_to, auth()->user()));
-        }
 
         return redirect(route('help.tickets.show', $ticket));
     }
@@ -149,10 +140,6 @@ class TicketController extends Controller
 
         $ticket->notify(new NotifyCallerTicketUpdated(':white_check_mark: ' . $message));
 
-        if ($ticket->message_id) {
-            $ticket->notify(new TicketReaction('resolved'));
-        }
-
         return redirect(route('help.tickets.show', $ticket));
     }
 
@@ -161,18 +148,12 @@ class TicketController extends Controller
         $this->authorize('manage', $ticket);
 
         $ticket->reopen();
-        $ticket->ownTo(auth()->user());
 
         $message = 'Ticket has been reopened!';
 
         $this->showToast($message);
 
         $ticket->notify(new NotifyCallerTicketUpdated($message));
-
-        if ($ticket->message_id) {
-            // reopened tickets are assigned to the current admin
-            $ticket->notify(new TicketReaction('assigned'));
-        }
 
         return redirect(route('help.tickets.show', $ticket));
     }
@@ -188,10 +169,6 @@ class TicketController extends Controller
         $this->showToast($message);
 
         $ticket->notify(new NotifyCallerTicketUpdated($message));
-
-        if ($ticket->message_id) {
-            $ticket->notify(new TicketReaction('rejected'));
-        }
 
         return redirect(route('help.tickets.show', $ticket));
     }
@@ -213,10 +190,6 @@ class TicketController extends Controller
         $ticket->notify(new NotifyCallerTicketUpdated($message));
         $ticket->notify(new NotifyNewTicketOwner($assignedUser, auth()->user()));
 
-        if ($ticket->message_id) {
-            $ticket->notify(new TicketReaction('assigned'));
-        }
-
         return redirect(route('help.tickets.show', $ticket));
     }
 
@@ -231,10 +204,6 @@ class TicketController extends Controller
         $this->showToast($message);
 
         $ticket->notify(new NotifyCallerTicketUpdated($message));
-
-        if ($ticket->message_id) {
-            $ticket->notify(new TicketReaction('assigned'));
-        }
 
         return redirect(route('help.tickets.show', $ticket));
     }

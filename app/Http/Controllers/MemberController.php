@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Position;
 use App\Http\Requests\DeleteMember;
 use App\Models\Division;
 use App\Models\Handle;
 use App\Models\Member;
 use App\Models\Platoon;
-use App\Models\Position;
+use App\Models\Rank;
 use App\Repositories\MemberRepository;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\Factory;
@@ -131,7 +132,7 @@ class MemberController extends Controller
         $notes = $member->notes()->with('author')->get()
             ->filter(function ($note) {
                 if ('sr_ldr' === $note->type) {
-                    return auth()->user()->isRole(['sr_ldr', 'admin']);
+                    return auth()->user()->isRole(['senior leader', 'administrator']);
                 }
 
                 return true;
@@ -146,6 +147,9 @@ class MemberController extends Controller
         $rankHistory = $member->rankActions()->with('rank')->get();
         $transfers = $member->transfers()->with('division')->get();
 
+        $recommendableRanks = Rank::where('id', '<=', auth()->user()->member->rank_id)
+            ->get()->pluck('name', 'id');
+
         return view('member.show', compact(
             'member',
             'division',
@@ -153,6 +157,7 @@ class MemberController extends Controller
             'partTimeDivisions',
             'rankHistory',
             'transfers',
+            'recommendableRanks'
         ));
     }
 
@@ -165,7 +170,7 @@ class MemberController extends Controller
     {
         $member = Member::find($request->member);
         $this->authorize('update', $member);
-        $member->assignPosition(Position::find($request->position));
+        $member->assignPosition(Position::from($request->position));
         $member->save();
     }
 
@@ -182,7 +187,10 @@ class MemberController extends Controller
 
         $division = $member->division;
 
-        $positions = Position::all()->pluck('id', 'name');
+        $positions = collect(Position::cases())->pluck('value', 'name')
+            ->flip()->map(function ($name, $value) {
+                return Position::from($value)->name();
+            })->flip();
 
         return view('member.edit-member', compact(
             'member',

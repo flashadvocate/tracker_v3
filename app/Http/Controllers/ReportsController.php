@@ -2,7 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Position;
+use App\Enums\Role;
 use App\Exceptions\FactoryMissingException;
+use App\Models\Division;
+use App\Models\Member;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\View\View;
 
@@ -31,7 +35,7 @@ class ReportsController extends \App\Http\Controllers\Controller
         $lastYearCensus = $censusCounts->reverse();
 
         // fetch all divisions and eager load census data
-        $censuses = \App\Models\Division::active()->orderBy('name')->with('census')->get()->filter(fn (
+        $censuses = Division::active()->orderBy('name')->with('census')->get()->filter(fn (
             $division
         ) => \count($division->census))->each(function ($division) {
             $division->total = $division->census->last()->count;
@@ -66,7 +70,7 @@ class ReportsController extends \App\Http\Controllers\Controller
         $invalidDates = fn ($member) => !carbon_date_or_null_if_zero($member->last_ts_activity);
         $newMembers = fn ($member) => $member->created_at < \Carbon\Carbon::now()->subDays(2);
 
-        $issues = \App\Models\Member::whereHas('division')->with(
+        $issues = Member::whereHas('division')->with(
             'rank',
             'division'
         )->get()->filter($invalidDates)->filter($newMembers);
@@ -80,7 +84,7 @@ class ReportsController extends \App\Http\Controllers\Controller
     public function outstandingMembersReport()
     {
         $clanMax = config('app.aod.maximum_days_inactive');
-        $divisions = \App\Models\Division::active()->orderBy('name')->withCount('members')->get();
+        $divisions = Division::active()->orderBy('name')->withCount('members')->get();
         $divisions->map(function ($division) use ($clanMax) {
             $divisionMax = $division->settings()->get('inactivity_days');
             $members = $division->members()->whereDoesntHave('leave')->get();
@@ -109,7 +113,7 @@ class ReportsController extends \App\Http\Controllers\Controller
      */
     public function usersWithoutDiscordReport()
     {
-        $divisions = \App\Models\Division::active()->get();
+        $divisions = Division::active()->get();
         $data = [];
         foreach ($divisions as $division) {
             foreach ($division->members->where('discord', '') as $member) {
@@ -122,14 +126,14 @@ class ReportsController extends \App\Http\Controllers\Controller
 
     public function divisionUsersWithAccess()
     {
-        foreach (\App\Models\Division::active()->get() as $division) {
+        foreach (Division::active()->get() as $division) {
             echo '---------- ' . $division->name . ' ---------- ' . PHP_EOL;
             $members = $division->members()->whereHas('user', function ($query) {
-                $query->where('role_id', '>', 2);
+                $query->where('role', '>', Role::OFFICER);
             })->get();
             $sortedMembers = collect(\Illuminate\Support\Arr::sort($members, fn ($member) => $member->rank_id));
             $sortedMembers->each(function ($member) {
-                echo $member->present()->rankName() . ", {$member->user->role_id}" . PHP_EOL;
+                echo $member->present()->rankName() . ", {$member->user->role->name()}" . PHP_EOL;
             });
             echo '---------- END OF DIVISION ----------' . PHP_EOL . PHP_EOL . PHP_EOL;
         }
@@ -140,7 +144,7 @@ class ReportsController extends \App\Http\Controllers\Controller
      */
     public function divisionTurnoverReport()
     {
-        $divisions = \App\Models\Division::active()->withCount(
+        $divisions = Division::active()->withCount(
             'members',
             'newMembersLast30',
             'newMembersLast60',
@@ -155,13 +159,16 @@ class ReportsController extends \App\Http\Controllers\Controller
      */
     public function leadership()
     {
-        $divisions = \App\Models\Division::active()->with([
+        $divisions = Division::active()->with([
             'sergeants' => function ($query) {
-                $query->orderByDesc('rank_id')->orWhereIn('position_id', [5, 6]);
-            }, 'sergeants.rank', 'sergeants.position',
+                $query->orderByDesc('rank_id')->orWhereIn('position', [
+                    Position::EXECUTIVE_OFFICER,
+                    Position::COMMANDING_OFFICER,
+                ]);
+            }, 'sergeants.rank',
         ])->withCount('sgtAndSsgt')->get();
 
-        $leadership = \App\Models\Member::where('rank_id', '>', 10)
+        $leadership = Member::where('rank_id', '>', 10)
             ->where('division_id', '!=', 0)
             ->with('rank')
             ->orderByDesc('rank_id')

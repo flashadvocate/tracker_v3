@@ -23,6 +23,8 @@ trait Settable
             return $this->get($key);
         }
 
+        return false;
+
         throw new Exception("The {$key} setting does not exist");
     }
 
@@ -50,6 +52,8 @@ trait Settable
         if ($this->has($key)) {
             return Arr::get($this->settings, $key);
         }
+
+        return false;
 
         throw new Exception("The {$key} setting does not exist");
     }

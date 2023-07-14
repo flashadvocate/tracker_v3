@@ -4,6 +4,7 @@
                 class="caret"></span></button>
     <ul class="dropdown-menu">
 
+
         @can('update', $member)
             <li>
                 <a href="{{ route('editMember', $member->clan_id) }}"> Edit member</a>
@@ -11,12 +12,13 @@
 
             @can('train', auth()->user())
                 <li>
-                    <a href="{{ route('training.sgt', ['clan_id' => $member->clan_id]) }}#sgt-duties">Perform Sgt Training</a>
+                    <a href="{{ route('training.sgt', ['clan_id' => $member->clan_id]) }}#sgt-duties">Perform Sgt
+                        Training</a>
                 </li>
             @endcan
 
             @if ($member->user)
-                @if (auth()->user()->isRole('admin') && !(session('impersonating')))
+                @if (auth()->user()->isRole(\App\Enums\Role::ADMINISTRATOR) && !(session('impersonating')))
                     @unless($member->user->id === auth()->user()->id)
                         <li>
                             <a href="{{ route('impersonate', $member->user) }}"> Impersonate User</a>
@@ -26,7 +28,7 @@
 
             @else
                 <li class="disabled">
-                    <a href="#" class="text-muted" disabled> No account</a>
+                    <a href="#" class="text-muted" disabled> No tracker account</a>
                 </li>
             @endif
             <li class="divider"></li>
@@ -39,6 +41,13 @@
         <li>
             <a href="{{ doForumFunction([$member->clan_id], 'forumProfile') }}" target="_blank">View forum profile</a>
         </li>
+
+        @can('recommend', $member)
+            <li>
+                <a href="#" data-toggle="modal"
+                   data-target="#create-recommendation"> Recommend</a>
+            </li>
+        @endcan
 
         @can ('manageIngameHandles', $member)
             <li>

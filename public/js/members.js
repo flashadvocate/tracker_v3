@@ -1,1 +1,96 @@
-!function(e){function t(r){if(a[r])return a[r].exports;var n=a[r]={i:r,l:!1,exports:{}};return e[r].call(n.exports,n,n.exports,t),n.l=!0,n.exports}var a={};return t.m=e,t.c=a,t.i=function(e){return e},t.d=function(e,t,a){Object.defineProperty(e,t,{configurable:!1,enumerable:!0,get:a})},t.n=function(e){var a=e&&e.__esModule?function(){return e["default"]}:function(){return e};return t.d(a,"a",a),a},t.o=function(e,t){return Object.prototype.hasOwnProperty.call(e,t)},t.p="",t(t.s=0)}([function(e,t){var a=a||{};!function(e){a={setup:function(){this.handleMemberList(),this.handleForumActivityChart()},handleForumActivityChart:function(){var t=e(".forum-activity-chart");new Chart(t,{type:"doughnut",data:{datasets:[{data:t.data("values"),backgroundColor:t.data("colors"),borderWidth:0}],labels:t.data("labels")},options:{rotation:1*Math.PI,circumference:1*Math.PI,legend:{position:"bottom",labels:{boxWidth:5,fontColor:"#949ba2"},label:{fullWidth:!1}}}})},handleMemberList:function(){function t(){e("#is_tba").is(":checked")?e("#leader_id, #leader").prop("disabled",!0).val(""):e("#leader_id, #leader").prop("disabled",!1)}var a=(parseInt(e(".platoon-number").text()),new Date);a.getDate(),a.getMonth()+1,a.getFullYear(),new Array;e("table.members").DataTable({bInfo:!1,autoWidth:!0,columnDefs:[{targets:"no-search",searchable:!1},{targets:"col-hidden",visible:!1,searchable:!1},{iDataSort:2,aTargets:[1]}],stateSave:!1,paging:!1}),e(".dataTables_filter input").appendTo("#playerFilter").removeClass("input-sm"),e("#playerFilter input").attr({placeholder:"Search Players","class":"form-control"}),e(".dataTables_filter label").remove(),e(".no-sort").removeClass("sorting"),e("#is_tba").click(function(){t()}),t()}}}(jQuery),a.setup()}]);
+/******/ (() => { // webpackBootstrap
+var __webpack_exports__ = {};
+/*!****************************************!*\
+  !*** ./resources/assets/js/members.js ***!
+  \****************************************/
+var Platoon = Platoon || {};
+(function ($) {
+  Platoon = {
+    setup: function setup() {
+      this.handleMemberList();
+      this.handleForumActivityChart();
+    },
+    handleForumActivityChart: function handleForumActivityChart() {
+      var ctx = $('.forum-activity-chart');
+      var myDoughnutChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          datasets: [{
+            data: ctx.data('values'),
+            backgroundColor: ctx.data('colors'),
+            borderWidth: 0
+          }],
+          labels: ctx.data('labels')
+        },
+        options: {
+          rotation: 1 * Math.PI,
+          circumference: 1 * Math.PI,
+          legend: {
+            position: 'bottom',
+            labels: {
+              boxWidth: 5,
+              fontColor: '#949ba2'
+            },
+            label: {
+              fullWidth: false
+            }
+          }
+        }
+      });
+    },
+    handleMemberList: function handleMemberList() {
+      var platoonNum = parseInt($('.platoon-number').text()),
+        formattedDate = new Date(),
+        d = formattedDate.getDate(),
+        m = formattedDate.getMonth() + 1,
+        y = formattedDate.getFullYear(),
+        nowDate = y + '-' + m + '-' + d,
+        selected = new Array();
+
+      /**
+       * Handle platoons, squads
+       */
+      $('table.members').DataTable({
+        bInfo: false,
+        autoWidth: true,
+        columnDefs: [{
+          targets: 'no-search',
+          searchable: false
+        }, {
+          targets: 'col-hidden',
+          visible: false,
+          searchable: false
+        }, {
+          // sort rank by rank id
+          'iDataSort': 2,
+          'aTargets': [1]
+        }],
+        stateSave: false,
+        paging: false
+      });
+      $('.dataTables_filter input').appendTo('#playerFilter').removeClass('input-sm');
+      $('#playerFilter input').attr({
+        'placeholder': 'Search Players',
+        'class': 'form-control'
+      });
+      $('.dataTables_filter label').remove();
+      $('.no-sort').removeClass('sorting');
+
+      // omit leader field if using TBA
+      $('#is_tba').click(function () {
+        toggleTBA();
+      });
+      toggleTBA();
+      function toggleTBA() {
+        if ($('#is_tba').is(':checked')) {
+          $('#leader_id, #leader').prop('disabled', true).val('');
+        } else {
+          $('#leader_id, #leader').prop('disabled', false);
+        }
+      }
+    }
+  };
+})(jQuery);
+Platoon.setup();
+/******/ })()
+;

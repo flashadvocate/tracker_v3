@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\Position;
 use App\Models\Member;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -106,7 +107,7 @@ class UpdatePlatoonForm extends FormRequest
      */
     private function resetLeaderOf($platoon)
     {
-        $platoon->leader->assignPosition('member')->save();
+        $platoon->leader->assignPosition(Position::MEMBER)->save();
 
         $platoon->leader()->dissociate()->save();
     }
@@ -128,8 +129,8 @@ class UpdatePlatoonForm extends FormRequest
 
         $this->platoon->leader()->associate($leader);
 
-        $leader->platoon()->associate($platoon);
-
-        $leader->assignPosition('platoon leader')->save();
+        $leader->platoon()->associate($platoon)
+            ->assignPosition(Position::PLATOON_LEADER)
+            ->save();
     }
 }

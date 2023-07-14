@@ -53,7 +53,7 @@ class DivisionController extends \App\Http\Controllers\Controller
             \Carbon\Carbon::now()->subDays($maxDays)->format('Y-m-d')
         )->count();
 
-        $divisionLeaders = $division->leaders()->with('rank', 'position')->get();
+        $divisionLeaders = $division->leaders()->with('rank')->get();
 
         $platoons = $division->platoons()->with('leader.rank')->with(
             'squads.leader',
@@ -166,7 +166,7 @@ class DivisionController extends \App\Http\Controllers\Controller
     public function members(Division $division)
     {
         $members = $division->members()->with([
-            'handles' => $this->filterHandlesToPrimaryHandle($division), 'rank', 'position', 'leave',
+            'handles' => $this->filterHandlesToPrimaryHandle($division), 'rank', 'leave',
         ])->get()->sortByDesc('rank_id');
 
         $members = $members->each($this->getMemberHandle());
@@ -184,7 +184,7 @@ class DivisionController extends \App\Http\Controllers\Controller
     public function exportAsCSV(Division $division)
     {
         $members = $division->members()->with([
-            'handles' => $this->filterHandlesToPrimaryHandle($division), 'rank', 'position', 'leave',
+            'handles' => $this->filterHandlesToPrimaryHandle($division), 'rank', 'leave',
         ])->get()->sortByDesc('rank_id');
 
         $members = $members->each($this->getMemberHandle());

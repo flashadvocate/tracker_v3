@@ -84,7 +84,7 @@
                             <label for="caller">Caller:</label>
                             <input type="text" id="caller" name="caller" class="form-control"
                                    style="color: rgba(255,255,255,.6)" disabled
-                                   value="{{ $ticket->caller->name }} ({{ $ticket->caller->member->position->name }} of {{ $ticket->division->name }})">
+                                   value="{{ $ticket->caller->name }} ({{ $ticket->caller->member->position->name() }} of {{ $ticket->division->name }})">
                         </div>
 
                         @if ($ticket->owner)
@@ -156,11 +156,11 @@
         </form>
 
         @foreach ($ticket->comments as $comment)
-            <div class="panel panel-filled {{ $comment->user->isRole('admin') ? 'panel-c-danger' : null }}">
+            <div class="panel panel-filled {{ $comment->user->isRole(\App\Enums\Role::ADMINISTRATOR) ? 'panel-c-danger' : null }}">
                 <div class="panel-body">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <strong {{ $comment->user->isRole('admin') ? "class=text-danger" : null }}>{{ $comment->user->name }}</strong>
+                            <strong {{ $comment->user->isRole(\App\Enums\Role::ADMINISTRATOR) ? "class=text-danger" : null }}>{{ $comment->user->name }}</strong>
                             {{ \OsiemSiedem\Autolink\Facades\Autolink::convert($comment->body) }}
                         </div>
                         <div class="text-muted">{{ $comment->created_at->diffForHumans() }}
