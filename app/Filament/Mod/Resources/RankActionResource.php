@@ -11,6 +11,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class RankActionResource extends Resource
 {
@@ -19,6 +20,16 @@ class RankActionResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-user-plus';
 
     protected static ?string $navigationGroup = 'Division';
+
+    public static function canEdit(Model $record): bool
+    {
+        return auth()->user()->isRole(['admin', 'sr_ldr']);
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return auth()->user()->isRole(['admin', 'sr_ldr']);
+    }
 
     public static function form(Form $form): Form
     {
