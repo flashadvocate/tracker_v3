@@ -21,6 +21,8 @@ class RankActionResource extends Resource
 
     protected static ?string $navigationGroup = 'Division';
 
+    protected static ?string $navigationParentItem = 'Members';
+
     public static function canEdit(Model $record): bool
     {
         return auth()->user()->isRole(['admin', 'sr_ldr']);
