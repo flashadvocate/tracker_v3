@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Position;
+use App\Enums\Rank;
 use App\Settings\UserSettings;
 use Exception;
 use Filament\Models\Contracts\FilamentUser;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Carbon;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
@@ -147,22 +149,37 @@ class User extends Authenticatable implements FilamentUser
 
     public function isSquadLeader(): bool
     {
-        if (!$member = $this->member) {
+        if (! $member = $this->member) {
             return false;
         }
 
         return $member->position == Position::SQUAD_LEADER;
-
     }
 
     public function isPlatoonLeader(): bool
     {
-        if (!$member = $this->member) {
+        if (! $member = $this->member) {
             return false;
         }
 
         return $member->position == Position::PLATOON_LEADER;
+    }
 
+    public function division()
+    {
+        return $this->hasOneThrough(Division::class, Member::class, 'id', 'id', 'member_id', 'division_id');
+    }
+
+    public function isDivisionLeader(): bool
+    {
+        if (! $member = $this->member) {
+            return false;
+        }
+
+        return in_array($member->position, [
+            Position::COMMANDING_OFFICER,
+            Position::EXECUTIVE_OFFICER,
+        ]);
     }
 
     /**
@@ -237,7 +254,7 @@ class User extends Authenticatable implements FilamentUser
     public function canAccessPanel(Panel $panel): bool
     {
         if ($panel->getId() == 'mod') {
-            return $this->isRole(['admin', 'sr_ldr']);
+            return $this->isRole(['admin', 'sr_ldr', 'officer']);
         }
 
         if ($panel->getId() == 'admin') {
@@ -245,5 +262,90 @@ class User extends Authenticatable implements FilamentUser
         }
 
         return false;
+    }
+
+    private function isWithinPlatoonLimit(Rank $targetRank, $division): bool
+    {
+        $maxPlRank = Rank::from($division->settings()->get('max_platoon_leader_rank'));
+
+        return $this->isPlatoonLeader() && $targetRank->value <= $maxPlRank->value;
+    }
+
+    private function isAdminOrDivisionLeader(): bool
+    {
+        return $this->isDivisionLeader() || $this->isRole('admin');
+    }
+
+    public static function autoApprovedTimestampForRank(
+        string $targetRank, $division, bool $asBoolean = false
+    ): bool|null|Carbon {
+        $user = auth()->user();
+        $targetRank = Rank::from($targetRank);
+
+        // CmdSgt+ authority on Sergeant+ approvals
+        if ($user->member->rank->value >= Rank::COMMAND_SERGEANT->value
+            && $targetRank->value >= Rank::SERGEANT->value) {
+            return $asBoolean ? true : now();
+        }
+
+        // Admins can auto-approve for ranks up to Corporal
+        if ($user->isRole('admin') && $targetRank->value <= Rank::CORPORAL->value) {
+            return $asBoolean ? true : now();
+        }
+
+        // Platoon Leaders may auto-approve if the target rank is within their limit
+        if ($user->isWithinPlatoonLimit($targetRank, $division)) {
+            return $asBoolean ? true : now();
+        }
+
+        // Division Leaders can auto-approve for ranks up to Corporal
+        if ($user->isDivisionLeader() && $targetRank->value <= Rank::CORPORAL->value) {
+            return $asBoolean ? true : now();
+        }
+
+        return $asBoolean ? false : null;
+    }
+
+    public function canManageCommentsFor(RankAction $action): bool
+    {
+        $userRank = $this->member->rank;
+        $newRank = $action->rank;
+
+        // For Sergeant and above, require that the user is at least Master Sergeant
+        if ($newRank->value >= Rank::SERGEANT->value) {
+            return $userRank->value >= Rank::MASTER_SERGEANT->value;
+        }
+
+        // Platoon leaders can manage comments for actions within their authorized rank range
+        if ($this->isWithinPlatoonLimit($newRank, $this->division)) {
+            return true;
+        }
+
+        // Otherwise, only Division Leaders or Admins can manage comments
+        return $this->isAdminOrDivisionLeader();
+    }
+
+    public function canApproveOrDeny(RankAction $action): bool
+    {
+        $userRank = $this->member->rank;
+        $newRank = $action->rank;
+
+        // A user cannot approve/deny a rank action for a rank higher than their own
+        if ($newRank->value > $userRank->value) {
+            return false;
+        }
+
+        // Platoon leaders can approve/deny if within their authorized rank range
+        if ($this->isWithinPlatoonLimit($newRank, $this->division)) {
+            return true;
+        }
+
+        // For Sergeant and above, require that the user is at least Command Sergeant
+        if ($newRank->value >= Rank::SERGEANT->value) {
+            return $userRank->value >= Rank::COMMAND_SERGEANT->value;
+        }
+
+        // For ranks below Sergeant, only Division Leaders or Admins can approve/deny
+        return $this->isAdminOrDivisionLeader();
     }
 }

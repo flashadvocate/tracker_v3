@@ -13,6 +13,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class LeaveResource extends Resource
 {
@@ -25,6 +26,28 @@ class LeaveResource extends Resource
     protected static ?string $navigationGroup = 'Division';
 
     protected static ?string $pluralLabel = 'Leaves of Absence';
+
+    public static function getNavigationBadge(): ?string
+    {
+        if (auth()->user()->isRole(['admin', 'sr_ldr'])) {
+            return (string) static::$model::where('approver_id', null)
+                ->whereHas('member', function ($memberQuery) {
+                    $memberQuery->where('division_id', auth()->user()->member->division_id);
+                })->count();
+        }
+
+        return null;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return auth()->user()->isRole(['admin', 'sr_ldr']);
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return auth()->user()->isRole(['admin', 'sr_ldr']);
+    }
 
     public static function form(Form $form): Form
     {
@@ -81,8 +104,13 @@ class LeaveResource extends Resource
                 Tables\Columns\TextColumn::make('member.division.name'),
                 Tables\Columns\TextColumn::make('reason'),
                 Tables\Columns\TextColumn::make('end_date')
+                    ->extraAttributes(fn (?Model $record) => $record->end_date < now()
+                        ? ['style' => 'background-color: #ff1111; border-radius: 10px;']
+                        : []
+                    )
                     ->dateTime()
                     ->sortable(),
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -115,7 +143,7 @@ class LeaveResource extends Resource
     {
         return [
             MemberRelationManager::class,
-            NoteRelationManager::class
+            NoteRelationManager::class,
         ];
     }
 
